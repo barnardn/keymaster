@@ -2,10 +2,13 @@ package keymaster_test
 
 import (
 	"bitbucket.org/barnardn/keymaster"
+	"crypto/aes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/nu7hatch/gouuid"
 	"io/ioutil"
 	"log"
 	"os"
@@ -80,4 +83,46 @@ func TestFindSpecificAppName(t *testing.T) {
 	database.Find(&appIdentifier, keymaster.AppIdentifier{AppName: "com.clamdango.appname"})
 	var credentials keymaster.Credentials
 	database.Model(&appIdentifier).Related(&credentials)
+}
+
+func TestFindNothing(t *testing.T) {
+	log.Println("TestFindSpecificAppName")
+	defer log.Println("/TestFindSpecificAppName")
+
+	var appIdentifier keymaster.AppIdentifier
+	database.Find(&appIdentifier, keymaster.AppIdentifier{AppName: "com.gogle.stuff"})
+	if database.NewRecord(appIdentifier) {
+		fmt.Printf("This is the empty thing I found: %v", appIdentifier)
+	} else {
+		t.Errorf("this thing was found %v", appIdentifier)
+	}
+
+}
+
+func TestCryptoStuff(t *testing.T) {
+
+	log.Println("TestCryptoStuff")
+	defer log.Println("/TestCryptoStuff")
+
+	var cred keymaster.Credentials
+	found, err := cred.FindByAppIdentifier(database, "com.clamdango.primary")
+	if err != nil {
+		t.Errorf("Error  ", err)
+	}
+	if !found {
+		t.Errorf("Hey, no credentials found")
+	}
+	// fmt.Printf("Encrypted credentials: %+v", cred.String())
+
+	var f interface{}
+	err = json.Unmarshal([]byte(cred.String()[:]), &f)
+	dict := f.(map[string]interface{})
+	cryptText64 := dict["cypherText"].(string)
+	cryptKey := dict["cypherKey"].(string)
+
+	aesKey, _ := uuid.ParseHex(cryptKey)
+	cryptText, err := base64.StdEncoding.DecodeString(cryptText64)
+	plainBuf := make([]byte, len(cryptText))
+	err = keymaster.DecryptAESCFB(plainBuf, []byte(cryptText[:]), aesKey[:], []byte(aesKey[:aes.BlockSize]))
+	fmt.Printf("decrypted: %v", string(plainBuf[:]))
 }

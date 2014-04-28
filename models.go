@@ -11,7 +11,9 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/nu7hatch/gouuid"
 	"time"
 )
@@ -55,7 +57,6 @@ func (cred *Credentials) String() (s string) {
 		plainTextInfo[appKey.Name] = appKey.Info
 	}
 	bytes, _ := json.Marshal(plainTextInfo)
-
 	aesKey, _ := uuid.ParseHex(cred.CypherKey)
 	var iv = aesKey[:aes.BlockSize]
 	cryptBuf := make([]byte, len(bytes))
@@ -65,10 +66,30 @@ func (cred *Credentials) String() (s string) {
 	}
 	var response = map[string]string{
 		"cypherKey":  cred.CypherKey,
-		"cypherText": base64.StdEncoding.EncodeToString(bytes),
+		"cypherText": base64.StdEncoding.EncodeToString(cryptBuf),
 	}
 	bytes, err = json.Marshal(response)
 	return string(bytes[:])
+}
+
+func (cred *Credentials) FindByAppIdentifier(db gorm.DB, appId string) (found bool, err error) {
+
+	var (
+		aid            AppIdentifier
+		appIdentifiers []AppIdentifier
+		keys           []AppKey
+	)
+	db.Find(&aid, &AppIdentifier{AppName: appId})
+	if db.NewRecord(aid) {
+		return false, errors.New("Not Found")
+	}
+	db.Model(&aid).Related(cred).Related(&keys).Related(&appIdentifiers)
+	if db.NewRecord(cred) {
+		return false, errors.New("Application id exits but credentials are missing or removed")
+	}
+	cred.AppNames = appIdentifiers
+	cred.Keys = keys
+	return true, nil
 }
 
 // App Identifier Methods
@@ -86,5 +107,15 @@ func encryptAESCFB(dst, src, key, iv []byte) error {
 	}
 	aesEncrypter := cipher.NewCFBEncrypter(aesBlockEncrypter, iv)
 	aesEncrypter.XORKeyStream(dst, src)
+	return nil
+}
+
+func DecryptAESCFB(dst, src, key, iv []byte) error {
+	aesBlockDecrypter, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return nil
+	}
+	aesDecrypter := cipher.NewCFBDecrypter(aesBlockDecrypter, iv)
+	aesDecrypter.XORKeyStream(dst, src)
 	return nil
 }

@@ -11,10 +11,6 @@ import (
 	"strings"
 )
 
-var validCommands = map[string]bool{
-	"recypher": true,
-}
-
 type credentialsHandler struct {
 	db gorm.DB
 }

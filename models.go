@@ -50,7 +50,7 @@ func (cred *Credentials) GenerateCypherKey() {
 	cred.CypherKey = cypherUUID.String()
 }
 
-func (cred *Credentials) String() (s string) {
+func (cred Credentials) String() (s string) {
 
 	var plainTextInfo = make(map[string]string, len(cred.Keys))
 	for _, appKey := range cred.Keys {

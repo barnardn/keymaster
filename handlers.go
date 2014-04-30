@@ -38,6 +38,8 @@ func (credHandler *credentialsHandler) ServeHTTP(w http.ResponseWriter, r *http.
 		retrieveCredentials(credHandler, w, r)
 	case "patch":
 		reissueCypherKey(credHandler, w, r)
+	case "put":
+		replaceCredentials(credHandler, w, r)
 	default:
 		w.WriteHeader(404)
 	}
@@ -77,31 +79,20 @@ func retrieveCredentials(ch *credentialsHandler, w http.ResponseWriter, r *http.
 		w.WriteHeader(400)
 		return
 	}
-	log.Printf("path parts: %v", pathParts[3])
+
 	if len(pathParts) == 0 {
 		w.WriteHeader(400)
 		w.Write(errorResponse(errors.New("Missing application identifer")))
 		return
 	}
-	var (
-		cred           Credentials
-		aid            AppIdentifier
-		appIdentifiers []AppIdentifier
-		keys           []AppKey
-	)
-	ch.db.Find(&aid, &AppIdentifier{AppName: pathParts[3]})
-	if ch.db.NewRecord(aid) {
+
+	var cred Credentials
+	_, err := cred.FindByAppIdentifier(ch.db, pathParts[3])
+	if err != nil {
 		w.WriteHeader(404)
+		w.Write(errorResponse(err))
 		return
 	}
-	ch.db.Model(&aid).Related(&cred).Related(&keys).Related(&appIdentifiers)
-	if ch.db.NewRecord(cred) {
-		w.WriteHeader(500)
-		w.Write(errorResponse(errors.New("The app identifier was found, but there were no matching credentials.")))
-		return
-	}
-	cred.AppNames = appIdentifiers
-	cred.Keys = keys
 	w.Write([]byte(cred.String()))
 }
 
@@ -114,8 +105,8 @@ func reissueCypherKey(ch *credentialsHandler, w http.ResponseWriter, r *http.Req
 		return
 	}
 	appId := pathParts[0]
-	log.Printf("app id: %v", appId)
-	cred, err := ch.findCredentials(appId)
+	var cred Credentials
+	_, err := cred.FindByAppIdentifier(ch.db, appId)
 	if err != nil {
 		w.WriteHeader(404)
 		w.Write(errorResponse(err))
@@ -124,6 +115,47 @@ func reissueCypherKey(ch *credentialsHandler, w http.ResponseWriter, r *http.Req
 	cred.GenerateCypherKey()
 	ch.db.Save(&cred)
 	w.Write([]byte(cred.String()))
+}
+
+func replaceCredentials(ch *credentialsHandler, w http.ResponseWriter, r *http.Request) {
+
+	pathParts := strings.Split(r.URL.String(), "/")
+	if len(pathParts) < 3 {
+		w.WriteHeader(400)
+		return
+	}
+
+	if len(pathParts) == 0 {
+		w.WriteHeader(400)
+		w.Write(errorResponse(errors.New("Missing application identifer")))
+		return
+	}
+
+	var oldCred, newCred Credentials
+	_, err := oldCred.FindByAppIdentifier(ch.db, pathParts[3])
+	if err != nil {
+		w.WriteHeader(404)
+		w.Write(errorResponse(err))
+		return
+	}
+	jsonRequest, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write(errorResponse(err))
+		return
+	}
+	err = json.Unmarshal(jsonRequest, &newCred)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write(errorResponse(err))
+		return
+	}
+	newCred.CypherKey = oldCred.CypherKey
+	ch.db.Where("credentials_id = ?", oldCred.Id).Delete(AppIdentifier{})
+	ch.db.Where("credentials_id = ?", oldCred.Id).Delete(AppKey{})
+	ch.db.Delete(&oldCred)
+	ch.db.Save(&newCred)
+	w.Write([]byte(newCred.String()))
 }
 
 // App Identifier Handler
@@ -180,23 +212,4 @@ func (ch *credentialsHandler) checkExistingAppIds(appIds []AppIdentifier) (exist
 	}
 	ch.db.Where("app_name in (?)", idstrs).Find(&existing)
 	return
-}
-
-func (ch *credentialsHandler) findCredentials(appId string) (cred Credentials, err error) {
-	var (
-		aid            AppIdentifier
-		appIdentifiers []AppIdentifier
-		keys           []AppKey
-	)
-	ch.db.Find(&aid, &AppIdentifier{AppName: appId})
-	if ch.db.NewRecord(aid) {
-		return cred, errors.New("Not Found")
-	}
-	ch.db.Model(&aid).Related(&cred).Related(&keys).Related(&appIdentifiers)
-	if ch.db.NewRecord(cred) {
-		return cred, errors.New("Application id exits but credentials are missing or removed")
-	}
-	cred.AppNames = appIdentifiers
-	cred.Keys = keys
-	return cred, nil
 }

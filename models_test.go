@@ -112,8 +112,6 @@ func TestCryptoStuff(t *testing.T) {
 	if !found {
 		t.Errorf("Hey, no credentials found")
 	}
-	// fmt.Printf("Encrypted credentials: %+v", cred.String())
-
 	var f interface{}
 	err = json.Unmarshal([]byte(cred.String()[:]), &f)
 	dict := f.(map[string]interface{})

@@ -1,5 +1,9 @@
 {
-    "appNames" : [ { "AppName" : "com.clamdango.appone"}, {"AppName" : "com.clamdango.crapaud"} ],
+    "appNames" : [ 
+        { "AppName" : "com.clamdango.appone"},
+        { "AppName" : "com.clamdango.apptwo"},
+        { "AppName" : "com.clamdango.appthree"}
+    ],
     "keys" : [
 	{ 
 	    "name" : "production",

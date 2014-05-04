@@ -1,0 +1,17 @@
+{
+    "appNames" : [ 
+        { "AppName" : "com.clamdango.appone"},
+        { "AppName" : "com.clamdango.apptwo"},
+        { "AppName" : "com.clamdango.appthree"}
+    ],
+    "keys" : [
+	{ 
+	    "name" : "production",
+	    "info" : "{ \"api\" : \"some-production-api-key--xx\",\"username\" : \"random_username\",\"password\" : \"random_password\"}"
+	}, 
+	{ 
+	    "name" : "development",
+	    "info" : "{\"api\" : \"some-development-api-key-xxx\",\"username\" : \"dev_username\",\"password\" : \"dev_password\"}"
+	}
+    ]
+}

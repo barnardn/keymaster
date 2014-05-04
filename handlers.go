@@ -12,15 +12,17 @@ import (
 )
 
 type credentialsHandler struct {
-	db gorm.DB
+	db     gorm.DB
+	logger *log.Logger
 }
 
 type errorMessage struct {
 	Message string
 }
 
-func CredentialsHandler(db gorm.DB) http.Handler {
-	return &credentialsHandler{db}
+func CredentialsHandler(db gorm.DB, logger *log.Logger) http.Handler {
+
+	return &credentialsHandler{db, logger}
 }
 
 func (credHandler *credentialsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +49,7 @@ func storeNewCredentials(ch *credentialsHandler, w http.ResponseWriter, r *http.
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write(errorResponse(err))
+		ch.logger.Println(err)
 		return
 	}
 	var credentials Credentials
@@ -54,6 +57,7 @@ func storeNewCredentials(ch *credentialsHandler, w http.ResponseWriter, r *http.
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write(errorResponse(err))
+		ch.logger.Println(err)
 		return
 	}
 	existingIds := ch.checkExistingAppIds(credentials.AppNames)
@@ -138,6 +142,7 @@ func replaceCredentials(ch *credentialsHandler, w http.ResponseWriter, r *http.R
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write(errorResponse(err))
+		ch.logger.Println(err)
 		return
 	}
 	err = json.Unmarshal(jsonRequest, &newCred)
@@ -157,11 +162,12 @@ func replaceCredentials(ch *credentialsHandler, w http.ResponseWriter, r *http.R
 // App Identifier Handler
 
 type appIdentifierHandler struct {
-	db gorm.DB
+	db     gorm.DB
+	logger *log.Logger
 }
 
-func AppIdentifierHandler(db gorm.DB) http.Handler {
-	return &appIdentifierHandler{db}
+func AppIdentifierHandler(db gorm.DB, logger *log.Logger) http.Handler {
+	return &appIdentifierHandler{db, logger}
 }
 
 func (aih *appIdentifierHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +191,7 @@ func (aih *appIdentifierHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write(errorResponse(err))
-		log.Printf("Error processing request: %v", err)
+		aih.logger.Println(err)
 		return
 	}
 	w.WriteHeader(200)

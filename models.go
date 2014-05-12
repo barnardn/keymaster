@@ -57,6 +57,13 @@ func (cred Credentials) String() (s string) {
 		plainTextInfo[appKey.Name] = appKey.Info
 	}
 	bytes, _ := json.Marshal(plainTextInfo)
+	padding := len(bytes) % aes.BlockSize
+	if padding > 0 {
+		for i := 0; i < padding; i++ {
+			bytes = append(bytes, byte(padding))
+		}
+	}
+
 	aesKey, _ := uuid.ParseHex(cred.CypherKey)
 	var iv = aesKey[:aes.BlockSize]
 	cryptBuf := make([]byte, len(bytes))
@@ -105,8 +112,8 @@ func encryptAESCFB(dst, src, key, iv []byte) error {
 	if err != nil {
 		return err
 	}
-	aesEncrypter := cipher.NewCFBEncrypter(aesBlockEncrypter, iv)
-	aesEncrypter.XORKeyStream(dst, src)
+	aesEncrypter := cipher.NewCBCEncrypter(aesBlockEncrypter, iv)
+	aesEncrypter.CryptBlocks(dst, src)
 	return nil
 }
 
@@ -115,7 +122,7 @@ func DecryptAESCFB(dst, src, key, iv []byte) error {
 	if err != nil {
 		return nil
 	}
-	aesDecrypter := cipher.NewCFBDecrypter(aesBlockDecrypter, iv)
-	aesDecrypter.XORKeyStream(dst, src)
+	aesDecrypter := cipher.NewCBCDecrypter(aesBlockDecrypter, iv)
+	aesDecrypter.CryptBlocks(src, src)
 	return nil
 }

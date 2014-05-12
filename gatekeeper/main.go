@@ -281,5 +281,4 @@ func decryptCredentials(cred string) {
 	plainBuf := make([]byte, len(cryptText))
 	_ = keymaster.DecryptAESCFB(plainBuf, []byte(cryptText[:]), aesKey[:], []byte(aesKey[:aes.BlockSize]))
 	fmt.Printf("%s\n", string(plainBuf[:]))
-
 }

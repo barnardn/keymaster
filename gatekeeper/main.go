@@ -279,6 +279,6 @@ func decryptCredentials(cred string) {
 	aesKey, _ := uuid.ParseHex(cryptKey)
 	cryptText, _ := base64.StdEncoding.DecodeString(cryptText64)
 	plainBuf := make([]byte, len(cryptText))
-	_ = keymaster.DecryptAESCFB(plainBuf, []byte(cryptText[:]), aesKey[:], []byte(aesKey[:aes.BlockSize]))
+	_ = keymaster.DecryptAESCBC(plainBuf, []byte(cryptText[:]), aesKey[:], []byte(aesKey[:aes.BlockSize]))
 	fmt.Printf("%s\n", string(plainBuf[:]))
 }

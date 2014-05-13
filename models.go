@@ -57,8 +57,8 @@ func (cred Credentials) String() (s string) {
 		plainTextInfo[appKey.Name] = appKey.Info
 	}
 	bytes, _ := json.Marshal(plainTextInfo)
-	padding := len(bytes) % aes.BlockSize
-	if padding > 0 {
+	padding := aes.BlockSize - len(bytes)%aes.BlockSize
+	if padding < aes.BlockSize {
 		for i := 0; i < padding; i++ {
 			bytes = append(bytes, byte(padding))
 		}
@@ -67,7 +67,7 @@ func (cred Credentials) String() (s string) {
 	aesKey, _ := uuid.ParseHex(cred.CypherKey)
 	var iv = aesKey[:aes.BlockSize]
 	cryptBuf := make([]byte, len(bytes))
-	err := encryptAESCFB(cryptBuf, bytes, []byte(aesKey[:]), iv)
+	err := encryptAESCBC(cryptBuf, bytes, []byte(aesKey[:]), iv)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to encrypt info: %v", err))
 	}
@@ -107,7 +107,7 @@ func (ai AppIdentifier) String() string {
 
 // Private helper methods
 
-func encryptAESCFB(dst, src, key, iv []byte) error {
+func encryptAESCBC(dst, src, key, iv []byte) error {
 	aesBlockEncrypter, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return err
@@ -117,12 +117,12 @@ func encryptAESCFB(dst, src, key, iv []byte) error {
 	return nil
 }
 
-func DecryptAESCFB(dst, src, key, iv []byte) error {
+func DecryptAESCBC(dst, src, key, iv []byte) error {
 	aesBlockDecrypter, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return nil
 	}
 	aesDecrypter := cipher.NewCBCDecrypter(aesBlockDecrypter, iv)
-	aesDecrypter.CryptBlocks(src, src)
+	aesDecrypter.CryptBlocks(dst, src)
 	return nil
 }
